@@ -29,25 +29,18 @@ class CreateMovementCommand extends Command
         $type = MovementType::from($this->option('type'));
 
         $quantity = (int) $this->option('quantity');
-
-        if ($quantity <= 0) {
-            throw new InvalidQuantity(
-                message: "Invalid quantity: {$quantity}. Quantity must be greater than zero."
+        
+        try {
+            $movement = $action->execute(
+                product: $product,
+                type: $type,
+                quantity: $quantity
             );
-        }
+        } catch (InsufficientStock | InvalidQuantity $e) {
+            $this->error($e->getMessage());
 
-        if ($type === MovementType::OUT && $quantity > $product->stock) {
-            throw new InsufficientStock(
-                availableStock: $product->stock,
-                requestedQuantity: $quantity
-            );
+            return self::FAILURE;
         }
-
-        $movement = $action->execute(
-            product: $product,
-            type: $type,
-            quantity: $quantity
-        );
 
         $this->info("Movement ID #{$movement->id} created successfully.");
         $this->line("Product ID #{$product->id}: '{$product->name}' now has stock: {$product->stock}");
