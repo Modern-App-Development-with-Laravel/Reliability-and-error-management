@@ -7,6 +7,8 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Italofantone\Inventory\Actions\CreateMovement;
 use Italofantone\Inventory\Enums\MovementType;
+use Italofantone\Inventory\Exceptions\InsufficientStock;
+use Italofantone\Inventory\Exceptions\InvalidQuantity;
 use Italofantone\Inventory\Models\Product;
 
 #[Signature('inventory:create-movement
@@ -27,6 +29,19 @@ class CreateMovementCommand extends Command
         $type = MovementType::from($this->option('type'));
 
         $quantity = (int) $this->option('quantity');
+
+        if ($quantity <= 0) {
+            throw new InvalidQuantity(
+                message: "Invalid quantity: {$quantity}. Quantity must be greater than zero."
+            );
+        }
+
+        if ($type === MovementType::OUT && $quantity > $product->stock) {
+            throw new InsufficientStock(
+                availableStock: $product->stock,
+                requestedQuantity: $quantity
+            );
+        }
 
         $movement = $action->execute(
             product: $product,
